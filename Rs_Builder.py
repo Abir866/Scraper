@@ -2,6 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from openai import OpenAI
 from langchain.prompts import PromptTemplate
 import os
@@ -12,7 +13,7 @@ import gradio as gr
 import random as r
 import time
 # from functions import *
-
+# Setting up the drver and broowser communication with special options
 CHROMEDRIVER_PATH = "/home/tufan/.nix-profile/bin/chromedriver"
 BRAVE_PATH = "/home/tufan/.nix-profile/bin/brave"
 
@@ -20,7 +21,8 @@ options = Options()
 options.binary_location = BRAVE_PATH
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
-options.add_argument("--disable-blink-features=AutomationControlled")
+#options.add_argument("--disable-blink-features=AutomationControlled")
+options.add_argument("--incognito")
 
 service = Service(CHROMEDRIVER_PATH)
 driver = webdriver.Chrome(service=service, options=options)
@@ -149,51 +151,126 @@ def resume_read(resume_input):
 
 
 def job_extraction():
+    
    global the_links, count, increment
-   while True:
-      try:
-         if len(the_links) == 0:
-            driver.get("https://jobs.sobeyscareers.com/search/?q=&q2=&alertId=&locationsearch=&title=&location=Halifax&department=&facility=")
+   # Define job and location search keywords
+   job_search_keyword = ['Data+Scientist', 'Business+Analyst', 'Data+Engineer', 
+                         'Python+Developer', 'Full+Stack+Developer', 
+                         'Machine+Learning+Engineer']
+   # Define job and location search keywords
+   # location_search_keyword = ['New+York', 'California', 'Washington']
+   # Finding location, position, radius=35 miles, sort by date and starting page
+   paginaton_url = 'https://www.careerbeacon.com/en/search/{0}?'
+   job_='Administrative+Assistant'
+   #next_page = 1
+   
+       # 1. Navigate to the Indeed login page
+   
+   
+       # 4. Enter Password (Wait for field to appear after clicking continue)
+   # password_field=driver.find_element(By.NAME, "__password")
+   # password_field.send_keys("your_password")
+   
+       # Wait for the dashboard to load to verify success
+       
+   job_lst=[]
+   job_description_list=[]
+   
+     
+          # 2. Enter Email
+   
+   # email_field = driver.find_element(By.NAME, "__email")
+   # email_field.send_keys("dolon2106000@gmail.com")
+          
+          # 3. Click Continue (Indeed often uses a multi-step login)
+   # continue_button = driver.find_element(By.XPATH, "//button[@type='submit']")
+   
+   # continue_button.click()
+   # time.sleep(r.randint(55,60))
+            # driver.get("https://jobs.sobeyscareers.com/search/?q=&q2=&alertId=&locationsearch=&title=&location=Halifax&department=&facility=")
+   print(paginaton_url.format(job_))
+   driver.get(paginaton_url.format(job_))
+   time.sleep(r.randint(20,25))
+   print("In site")
 
-         time.sleep(r.randint(1,3))
-         print("In site")
 
-         the_links = driver.find_elements(By.XPATH, "//table[@id='searchresults']//tbody//a[@class]")
-         print(f"links {len(the_links)} length")
-         print(the_links[count].text)
 
-         driver.get(the_links[count].get_attribute("href"))
-         time.sleep(r.randint(1,3))
 
-         the_descriptions =  driver.find_elements(By.XPATH, "//span[@class='jobdescription']//div[1]")
-         print(len(the_descriptions))
-         # for elem in the_descriptions:
-         #     for i in  elem.text.split("\n"):
-         #         print(i + "Yo")
+   job_list= driver.find_elements(By.CSS_SELECTOR,'a.serp_job_title')
+   for job in job_list:
+       print(job.get_attribute("href")) 
+   time.sleep(r.randint(5, 7))   
+   next_page = driver.find_element(By.XPATH,'//a[@aria-label="Next page"]').click()
+   time.sleep(r.randint(15,17));
+   print(driver)
+   print(len(job_list))
+   
 
-         unique = list(dict.fromkeys([i  for elem in the_descriptions for i in elem.text.split("\n") ]))
-         for x  in unique:
-               print(x)
-         posting = ''''''.join(unique + "\n")
-         print("This is the posting\n"+posting)
-         create_app(posting)
 
-         print("-"*50+"\nNext Post\n"+"-"*50+"\n")
-         print(f"{count} post")
+ #next_page = driver.find_element(By.XPATH,'//a[@aria-label="Next page"]').click()
+  
+    #Maximum number of pages for this section
+  
+  
+   
+   # print('Max Iterable Pages for this search:',max_iter_pgs)
+   
+   # for i in range(0, max_iter_pgs):
+   #     driver.get(paginaton_url.format(job_,location,i*10))
+       
+       
+   #     time.sleep(r.randint(2, 4))
+   
+   #     job_page = driver.find_element(By.ID,"mosaic-jobResults")
+   #     jobs = job_page.find_elements(By.CLASS_NAME,"job_seen_beacon") # return a list
+   
+   #     for jj in jobs:
+   #         job_title = jj.find_element(By.CLASS_NAME,"jobTitle")
+           
+   #         job_title.click()
+           
+   #         time.sleep(r.randint(3, 5))
+           
+   #         try: 
+   #                     job_description_list.append(driver.find_element(By.ID,"jobDescriptionText").text)
+                       
+   #         time.sleep(r.randint(7,10));  #                     job_description_list.append(None)
+         # the_links = driver.find_elements(By.XPATH, "//table[@id='searchresults']//tbody//a[@class]")
+         # print(f"links {len(the_links)} length")
+         # print(the_links[count].text)
+    
+         # driver.get(the_links[count].get_attribute("href"))
+         # time.sleep(r.randint(1,3))
 
-         time.sleep(r.randint(1,3))
-         driver.back()
+         # the_descriptions =  driver.find_elements(By.XPATH, "//span[@class='jobdescription']//div[1]")
+         # print(len(the_descriptions))
+         # # for elem in the_descriptions:
+         # #     for i in  elem.text.split("\n"):
+         # #         print(i + "Yo")
 
-         # change to next posting
-         increment = increment + 1
-         count = (increment)*2
+         # # unique = list(dict.fromkeys([i  for elem in the_descriptions for i in elem.text.split("\n") ]))
+         # # for x  in unique:
+         # #       print(x)
+         # # posting = ''''''.join(x + "\n")
+         # # print("This is the posting\n"+posting)
+         # create_app(posting)
 
-         if count == len(the_links):
+         # print("-"*50+"\nNext Post\n"+"-"*50+"\n")
+         # print(f"{count} post")
 
-               time.sleep(r.randint(1,3))
-               break
-      except :
-         print("Element not ready, retrying...")
+         # time.sleep(r.randint(1,3))
+         # driver.back()
+
+         # # change to next posting
+         # increment = increment + 1
+         # count = (increment)*2
+      
+         # if count == len(the_links):
+
+         #       time.sleep(r.randint(1,3))
+         #       break
+      
+         # print("Element not ready, retrying...")
 
 count=0
 increment = 0
