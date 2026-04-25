@@ -23,7 +23,7 @@ driver = webdriver.Chrome(service=service, options=options)
 count=0
 increment = 0
 the_links = []
-with subprocess.Popen(["cat","Toufiq Abir Farhan Resume(Master resume).md"], stdout=subprocess.PIPE, text=True) as proc:
+with subprocess.Popen(["typst","Toufiq Abir Farhan Resume(Master resume).md"], stdout=subprocess.PIPE, text=True) as proc:
   ret = proc.stdout.read()
   print(ret)
 while True:

@@ -39,7 +39,7 @@ list_new = []
 
 with open("jobs.csv", "w", newline="", encoding="utf-8") as file:
     writer = csv.writer(file)
-    writer.writerow(["Job Link", "Date"])  # header
+    writer.writerow(["Job Link", "Date", "Applied"])  # header
 
     for page in range(55):
         print(f"\n--- Page {page+1} ---")
@@ -61,7 +61,7 @@ with open("jobs.csv", "w", newline="", encoding="utf-8") as file:
             print(date.text)
             match = re.search(r'\d+',date.get_attribute("textContent"))
             # write to CSV
-            writer.writerow([job, int(match.group()) if match else 0 ])
+            writer.writerow([job, int(match.group()) if match else 0, ])
 
         print(len(job_list))
         print(len(expiry_dates))

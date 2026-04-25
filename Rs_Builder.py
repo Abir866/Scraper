@@ -1,3 +1,4 @@
+from pickle import FALSE
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -7,7 +8,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from openai import OpenAI
 from langchain.prompts import PromptTemplate
-import os
+import subprocess
 from dotenv import  dotenv_values
 from markdown import markdown
 from weasyprint import HTML
@@ -30,10 +31,19 @@ options.add_argument("--incognito")
 # service = Service(CHROMEDRIVER_PATH)
 # driver = webdriver.Chrome(service=service, options=options)
 
+#Global variables
+global the_links, increment, count
+count = 3
+
+
 
 config = dotenv_values(".env")
 api_key = config['OPENROUTER_API_KEY']
 
+# Read the job links from csv file
+csv_File = pan.read_csv("jobs.csv")
+
+# optimize resume
 def process_resume (*inputs):
    with open(inputs[0], "r", encoding="utf-8") as file:
        
@@ -126,12 +136,12 @@ def process_resume (*inputs):
 
    # make api call
    response = client.chat.completions.create(
-      model="inclusionai/ling-2.6-flash:free",
+      model="openai/gpt-oss-120b:free",
       messages=[
          {"role": "system", "content": system_prompt_template},
          {"role": "user", "content": prompt}
       ],
-      temperature = 0.7
+      temperature = 0.7,
    )
 
    # extract response
@@ -152,7 +162,7 @@ def export_resume(new_resume):
     Returns:
         str: A message indicating success or failure of the PDF export
     """
-    with open("resume.typ",'w') as writer:
+    with open("resume_starter.typ",'w') as writer:
         writer.write(new_resume)
     # try:
     #     # save as PDF
@@ -167,38 +177,12 @@ def export_resume(new_resume):
     #     return f"Successfully exported resume to {output_pdf_file} 🎉"
     # except Exception as e:
     #     return f"Failed to export resume: {str(e)} 💔"
+    with subprocess.Popen(["typst","watch","--root ../Scraper ./resume_starter.typ"], stdout=subprocess.PIPE, text=True) as proc:
+        time.sleep(2)
+        proc.kill()
     return f'Successfully exported resume {new_resume}'
 
-def create_app (posting):
-   with gr.Blocks() as app:
-      # create header and app description
-      gr.Markdown("# Resume Optimizer 📄")
-      gr.Markdown("Upload your resume, paste the job description, and get actionable insights!")
 
-      # gather inputs
-      with gr.Row():
-         resume_input = gr.File(label="Upload Your Resume (.pdf)")
-         jd_input = gr.Textbox(value= posting, label="Paste the Job Description Here", lines=9, interactive=True, placeholder="Paste job description...")
-      run_button = gr.Button("Optimize Resume 🤖")
-
-      # display outputs
-      # output_resume_typ = gr.Markdown(label="New Resume")
-      # output_suggestions = gr.Markdown(label="Suggestions")
-
-      # editing results
-      output_resume = gr.Textbox(label="Edit resume and export!", interactive=True)
-      export_button = gr.Button("Export Resume as PDF 🚀")
-      export_result = gr.Markdown(label="Export Result")
-
-      # Event binding
-      run_button.click(process_resume, inputs=[resume_input, jd_input], outputs=[output_resume])
-      export_button.click(export_resume, inputs=[output_resume], outputs=[export_result])
-
-   # Launch the app
-   app.launch()
-   # output_pdf_file = "resume_new.pdf"
-   # html_content = markdown(response_string)
-   # HTML(string=html_content).write_pdf(output_pdf_file)
 
 
 def resume_read(resume_input):
@@ -209,7 +193,7 @@ def resume_read(resume_input):
 
 def job_extraction():
     
-   global the_links, count, increment
+   
    # Define job and location search keywords
    # job_search_keyword = ['Data+Scientist', 'Business+Analyst', 'Data+Engineer', 
    #                       'Python+Developer', 'Full+Stack+Developer', 
@@ -220,23 +204,32 @@ def job_extraction():
    # paginaton_url = 'https://www.careerbeacon.com/en/search/{0}?'
    # job_='Administrative+Assistant'
    # #next_page = 1
-   csv_File = pan.read_csv("jobs.csv")
+    global count
    
    #Extract job details in the posting
-   
-   for each_link in csv_File['Job Link'].values:
-       service = Service(CHROMEDRIVER_PATH)
-       driver = webdriver.Chrome(service=service, options=options)
-       driver.get(each_link)
-       container = WebDriverWait(driver, 20).until(
-           EC.presence_of_element_located((By.CSS_SELECTOR, "section.details > div"))
-       )
-       elements = container.find_elements(By.XPATH, ".//*[contains(text(),'t')]")
-       
+    if csv_File.at[count,'Applied']== False:
+       job_link = csv_File.at[count,'Job Link']
+       csv_File.at[count,'Applied'] = True
+       count = count + 1
+       print(job_link)
+    else:
+        while(csv_File.at[count,'Applied'] != False):
+           count = count + 1
+        job_link = csv_File[count,'Job Link'] 
+        csv_File.at[count,'Applied'] = True
+    
+    
+    service = Service(CHROMEDRIVER_PATH)
+    driver = webdriver.Chrome(service=service, options=options)
+    driver.get(job_link)
+    container = WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "section.details > div"))
+    )
+    elements = container.find_elements(By.XPATH, ".//*[contains(text(),'t')]") 
        #data = [*[line_element.text for line_element in job_details], sep="\n" ]
        
        #for line in data:
-       create_app("\n".join([line_element.get_attribute("textContent") for line_element in elements]) )
+    return "\n".join([line_element.get_attribute("textContent") for line_element in elements])
        # job_post = driver.get(each_link)
        # job_details = driver.find_elements(By.XPATH,"//section[contains(@class,'details')]/div//p[contains(text(),' ')] and li[contains(text(),' ')]")
        # print(*[line_element.text for line_element in job_details], sep="\n" )
@@ -347,7 +340,37 @@ def job_extraction():
       
          # print("Element not ready, retrying...")
 
-count=0
-increment = 0
-the_links = []
-job_extraction()
+def create_app ():
+   with gr.Blocks() as app:
+      # create header and app description
+      gr.Markdown("# Resume Optimizer 📄")
+      gr.Markdown("Upload your resume, paste the job description, and get actionable insights!")
+      with gr.Row():
+          grab_button = gr.Button("Grab resume")
+          uncheck_button = gr.Button("Check as Applied")
+      # gather inputs
+      with gr.Row():
+         resume_input = gr.File(label="Upload Your Resume (.pdf)")
+         jd_input = gr.Textbox(label="Paste the Job Description Here", lines=9, interactive=True, placeholder="Paste job description...")
+      run_button = gr.Button("Optimize Resume 🤖")
+
+      # display outputs
+      # output_resume_typ = gr.Markdown(label="New Resume")
+      # output_suggestions = gr.Markdown(label="Suggestions")
+
+      # editing results
+      output_resume = gr.Textbox(label="Edit resume and export!", interactive=True)
+      export_button = gr.Button("Export Resume as PDF 🚀")
+      export_result = gr.Markdown(label="Export Result")
+
+      # Event binding
+      grab_button.click(job_extraction, outputs=[jd_input])
+      run_button.click(process_resume, inputs=[resume_input, jd_input], outputs=[output_resume])
+      export_button.click(export_resume, inputs=[output_resume], outputs=[export_result])
+      
+   # Launch the app
+   app.launch()
+   # output_pdf_file = "resume_new.pdf"
+   # html_content = markdown(response_string)
+   # HTML(string=html_content).write_pdf(output_pdf_file)
+create_app()
