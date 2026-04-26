@@ -20,6 +20,7 @@ pkgs.mkShellNoCC {
     python312Packages.weasyprint
     python312Packages.markdown
     python312Packages.httpx
+    typst
   ];
 
   GREETING = "Hello, Nix!";
