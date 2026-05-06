@@ -31,13 +31,14 @@ options.add_argument("--incognito")
 # driver = webdriver.Chrome(service=service, options=options)
 #Global variables
 global the_links, increment, count
-count = 2
+count = 0
 
 config = dotenv_values(".env")
 api_key = config['OPENROUTER_API_KEY']
 
 # Read the job links from csv file
 csv_File = pan.read_csv("jobs.csv")
+csv_File.sort_values(by="Date",inplace=True)
 
 # optimize resume
 def process_resume (*inputs):
@@ -49,9 +50,9 @@ def process_resume (*inputs):
    You are a resume generator that gives expereinces in typst format following a particular
    structure as will be given in output format example. You will be using 3 to 4 bullet points from relevant job titles in work history as content of the output that are close to the job posting points
    based on semantic closeness, try using job posting keywords for bullets that are already
-   similar to increase ATS score. Make sure the expeeinces are sorted from most recent to later
+   similar to increase ATS score. Make sure the expeeinces are sorted in latest to oldest of the end date
 
-   Always separate the typst structure uing TOU from the rest of the response.
+   Always separate the typst structure from the rest of the response.
    Example of an Input pompt and its out put :
    Input - Use the work history below
    Customer Service Representative Halifax, NS
@@ -64,7 +65,7 @@ def process_resume (*inputs):
    • Offer additional complimentary products as recommendations that can improve the experience with the orginal
    product whereas keeping it customer's budget friendly
 
-   to give me expereinces in typst structure that aligns with the job posting , as follows
+   Give me expereinces in typst structure that aligns with the job posting , as follows
    The Admitting Clerk ensures that the principles and practices that guide NSHA such as the mission
    vision, values,expected behaviors, the leadership philosophy, organizational health, population health, ethics, safety, quality, partnerships and Interprofessional collaboration are integrated within the services they provide and through the messages they deliver. About You We would love to hear from you if you have the following: Graduate of a recognized office administration program or equivalent required Completion of medical terminology certificate required Minimum of one year recent related clerical experience which includes utilizing medical terminology,
    patientbooking systems, health care systems and processes Microsoft Office expertise
@@ -130,12 +131,13 @@ def process_resume (*inputs):
 
    # make api call
    response = client.chat.completions.create(
-      model="openai/gpt-oss-120b:free",
+      model="deepseek/deepseek-v4-flash",
       messages=[
          {"role": "system", "content": system_prompt_template},
          {"role": "user", "content": prompt}
       ],
-      temperature = 0.7
+      temperature = 0.7,
+      reasoning_effort = "low"
    )
 
    # extract response
@@ -143,9 +145,9 @@ def process_resume (*inputs):
 
    full_resume = """
    #import "../lib/resume.typ"
-   
+
    // Resume
-   
+
    #resume.full(
      head: resume.header(
        name: "Toufiq Abir Farhan Tufan",
@@ -159,7 +161,7 @@ def process_resume (*inputs):
        ),
      ),
      profile: "Self-motivated, organized administrative assistant with over 1 year of experience preparing and organizing documents, maintaining accurate records, and communicating through email and phone, scheduling appointments in a fast-paced customer focused environment. Welcoming and appreciative personality with the ability to adapt according to required organization standard procedures and policies. Demonstrated ability to be detail-oriented in analysing information and ensuring integrity. Always take a company-first approach and maintain confidentiality of proprietary information. Confident in managing time to be able to multi-task various operational procedures maintaining quality that aligns with company needs and values ",
-   
+
    education: (
      resume.education(
        institution: "Saint Mary's University",
@@ -168,6 +170,7 @@ def process_resume (*inputs):
        major: "Computer Science",
        start: "Sep 2020",
        end: "May 2024",
+       certification: "ISC2 Certified in Cyber Security(CC)",
        courses: (
          "Intro to Computer Applications",
          "Data Management",
@@ -188,7 +191,7 @@ def process_resume (*inputs):
      "Resolve travel bookings, ticket refund and flight re-scheduling concerns of customers facilitating a smooth experience",
      "Build strong relationships with customers through empathy towards different needs to adopt personalizing the solutions ",
      "Logged calls and maintained accurate case notes in tracking systems"
-   
+
    ),
    ),
    """ + response_string  + """
@@ -225,7 +228,7 @@ def process_resume (*inputs):
    print(response_string)
    return full_resume
 
-def export_resume(new_resume):
+def export_resume(new_resume,link):
     """
     Convert a markdown resume to PDF format and save it.
 
@@ -237,6 +240,7 @@ def export_resume(new_resume):
     """
     with open("src/resume_starter.typ",'w') as writer:
         writer.write(new_resume)
+        global count
     # try:
     #     # save as PDF
     #     output_pdf_file = "resumes/resume_new.pdf"
@@ -250,7 +254,9 @@ def export_resume(new_resume):
     #     return f"Successfully exported resume to {output_pdf_file} 🎉"
     # except Exception as e:
     #     return f"Failed to export resume: {str(e)} 💔"
-    with subprocess.Popen(["typst","compile","--root", ".", "./src/resume_starter.typ"], stdout=subprocess.PIPE, text=True) as proc:
+    print(link.split("/")[7])
+   
+    with subprocess.Popen(["typst","compile","--root", ".", f"./src/resume_starter.typ",f"Resume_TAFT_{link.split("/")[7]}{count}.pdf"], stdout=subprocess.PIPE, text=True) as proc:
         time.sleep(2)
         proc.kill()
     return f'Successfully exported resume {new_resume}'
@@ -265,7 +271,7 @@ def resume_read(resume_input):
 
 def job_extraction():
 
-   
+
    # Define job and location search keywords
    # job_search_keyword = ['Data+Scientist', 'Business+Analyst', 'Data+Engineer',
    #                       'Python+Developer', 'Full+Stack+Developer',
@@ -279,7 +285,6 @@ def job_extraction():
    global count
 
    #Extract job details in the posting
-
    if csv_File.at[count,'Applied']== False:
           job_link = csv_File.at[count,'Job Link']
           csv_File.at[count,'Applied'] = True
@@ -288,7 +293,7 @@ def job_extraction():
    else:
            while(csv_File.at[count,'Applied'] != False):
               count = count + 1
-           job_link = csv_File[count,'Job Link']
+           job_link = csv_File.at[count,'Job Link']
            csv_File.at[count,'Applied'] = True
 
 
@@ -299,7 +304,7 @@ def job_extraction():
            EC.presence_of_element_located((By.CSS_SELECTOR, "section.details > div"))
        )
    elements = container.find_elements(By.XPATH, ".//*[contains(text(),' ')]")
-   return "\n".join([line_element.get_attribute("textContent") for line_element in elements])
+   return "\n".join([line_element.get_attribute("textContent") for line_element in elements]),job_link
        # job_post = driver.get(each_link)
        # job_details = driver.find_elements(By.XPATH,"//section[contains(@class,'details')]/div//p[contains(text(),' ')] and li[contains(text(),' ')]")
        # print(*[line_element.text for line_element in job_details], sep="\n" )
@@ -411,13 +416,15 @@ def job_extraction():
          # print("Element not ready, retrying...")
 def previous_job():
     global count
-    csvFile 
     count = count - 1
+    csv_File.at[count,'Applied'] = False
+    
     return "Clicked!"
 def create_app ():
    with gr.Blocks() as app:
       # create header and app description
       gr.Markdown("# Resume Optimizer 📄")
+      link = gr.Markdown(label="Link to site")
       gr.Markdown("Upload your resume, paste the job description, and get actionable insights!")
       with gr.Row():
           grab_button = gr.Button("Grab resume")
@@ -439,14 +446,13 @@ def create_app ():
       uncheck_button.click(previous_job,outputs=[output_resume])
 
       # Event binding
-      grab_button.click(job_extraction, outputs=[jd_input])
+      grab_button.click(job_extraction, outputs=[jd_input,link])
       run_button.click(process_resume, inputs=[resume_input, jd_input], outputs=[output_resume])
-      export_button.click(export_resume, inputs=[output_resume], outputs=[export_result])
-      
+      export_button.click(export_resume, inputs=[output_resume,link], outputs=[export_result])
+
    # Launch the app
    app.launch()
    # output_pdf_file = "resume_new.pdf"
    # html_content = markdown(response_string)
    # HTML(string=html_content).write_pdf(output_pdf_file)
 create_app()
-

@@ -1,6 +1,8 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 import time
@@ -36,7 +38,7 @@ list_new = []
 import csv
 
 list_new = []
-
+job_list=[]
 with open("jobs.csv", "w", newline="", encoding="utf-8") as file:
     writer = csv.writer(file)
     writer.writerow(["Job Link", "Date", "Applied"])  # header
@@ -48,10 +50,11 @@ with open("jobs.csv", "w", newline="", encoding="utf-8") as file:
             By.XPATH,
             "//div[contains(@class,'serp_job_title') and contains(@class,'clickable')]/preceding-sibling::a"
         )
+        list_new=[]
 
         for j in job_list:
-            if j.get_attribute("href") not in list_new:
-                list_new.append(j.get_attribute("href"))
+            if j.get_attribute('href') not in list_new:
+                list_new.append(j.get_attribute('href'))
 
         expiry_dates = driver.find_elements(By.XPATH, "//div[contains(text(),'day')]")
 
@@ -72,6 +75,8 @@ with open("jobs.csv", "w", newline="", encoding="utf-8") as file:
         try:
             next_page = driver.find_element(By.XPATH, '//a[@aria-label="Next page"]')
             next_page.click()
+            
+            
         except:
             print("No more pages")
             break
